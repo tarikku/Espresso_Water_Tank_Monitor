@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 '''
 Espresso Tank Meter
-Feather ESP32-S2 with RCWL-1601 Ultrasonic distance sensor
+Feather ESP32-S2 with US-100 Ultrasonic distance sensor
 '''
 
 import time
@@ -21,7 +21,7 @@ import adafruit_hcsr04
 import adafruit_minimqtt.adafruit_minimqtt as MQTT
 from adafruit_io.adafruit_io import IO_MQTT
 import adafruit_requests
-import adafruit_max1704x
+import adafruit_lc709203f
 
 # Initialize the power pin for the sensor
 sensor_power = digitalio.DigitalInOut(board.A2)
@@ -42,7 +42,9 @@ sonar = adafruit_hcsr04.HCSR04(trigger_pin=board.A0, echo_pin=board.A1)
 
 # Initialize the battery monitor
 i2c = board.I2C()  # uses board.SCL and board.SDA
-battery_monitor = adafruit_max1704x.MAX17048(i2c)
+
+time.sleep(0.55)  # Short delay before init
+battery_monitor = adafruit_lc709203f.LC709203F(i2c)
 
 # Define colors (hex values)
 WHITE = 0xFFFFFF
@@ -61,9 +63,9 @@ pixel.fill(YELLOW)
 
 # Operating hours (24-hour format with minutes, e.g., "6:35" and "16:00")
 OPENING_TIME = "6:00"
-CLOSING_TIME = "15:30"
+CLOSING_TIME = "17:00"
 # Normal operation check interval
-NORMAL_CHECK_MINUTES = 10
+NORMAL_CHECK_MINUTES = 1  # 10
 # Sleep duration in seconds during operating hours
 SLEEP_DURATION = 60 * NORMAL_CHECK_MINUTES
 # Display duration in seconds
@@ -209,8 +211,9 @@ if avg_distance is not None:
             io.loop()
 
             # Send the distance data
-            print(f"Publishing {avg_distance:.1f} to espresso water level feed")
-            io.publish("espresso-water-tank-level", f"{avg_distance:.1f}")
+            water_level = max(0, min(100, 100 - (avg_distance / 22 * 100)))  # Convert distance to percentage
+            print(f"Publishing {water_level:.1f} to espresso water level feed")
+            io.publish("espresso-water-tank-level", f"{water_level:.1f}")
 
             # Send the battery data
             print(f"Publishing {battery_percent:.1f} to battery level feed")
